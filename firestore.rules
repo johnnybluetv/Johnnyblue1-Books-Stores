@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /books/{bookId} {
+      allow read, write: if true;
+    }
+    match /reviews/{reviewId} {
+      allow read, write: if true;
+    }
+    match /authors/{authorId} {
+      allow read, write: if true;
+    }
+    match /user_uploads/{uploadId} {
+      allow read, write: if true;
+    }
+    match /wishlists/{userId} {
+      allow read, write: if true;
+    }
+    match /author_payout_accounts/{authorId} {
+      allow read, write: if true;
+    }
+    match /audio_bookmarks/{bookmarkId} {
+      allow read, write: if true;
+    }
+    match /blog_posts/{postId} {
+      allow read, write: if true;
+    }
+  }
+}

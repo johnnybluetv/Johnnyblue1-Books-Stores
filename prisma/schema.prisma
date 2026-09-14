@@ -1,0 +1,184 @@
+// Prisma Schema for JOHNNYBLUE1 BOOKS STORES (KNOWLEDGE CENTA)
+// Multi-Format Bookstore & Creator Publishing Platform
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum FormatType {
+  EBOOK
+  AUDIOBOOK
+  VIDEOBOOK
+  MANUSCRIPT
+}
+
+enum MediaStatus {
+  PROCESSING
+  READY
+  ARCHIVED
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  avatarUrl     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  // Relations
+  purchases     Purchase[]
+  libraryItems  LibraryItem[]
+  reviews       Review[]
+  authorProfile Author?
+  accessLogs    MediaAccessLog[]
+
+  @@map("users")
+}
+
+model Author {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  penName     String
+  bio         String?  @db.Text
+  avatarUrl   String?
+  payoutEmail String?
+  royaltyRate Float    @default(0.85) // 85% creator royalty
+  verified    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  books       Book[]
+
+  @@map("authors")
+}
+
+model Book {
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  title           String
+  subtitle        String?
+  authorId        String
+  category        String
+  description     String         @db.Text
+  coverImageUrl   String
+  publisher       String         @default("Knowledge Centa Press")
+  isbn            String?        @unique
+  pages           Int?
+  language        String         @default("en")
+  isBestSeller    Boolean        @default(false)
+  isEditorsPick   Boolean        @default(false)
+  ratingAverage   Float          @default(5.0)
+  ratingCount     Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  author          Author         @relation(fields: [authorId], references: [id])
+  formats         BookFormat[]
+  purchases       Purchase[]
+  libraryItems    LibraryItem[]
+  reviews         Review[]
+
+  @@index([slug])
+  @@index([category])
+  @@map("books")
+}
+
+model BookFormat {
+  id              String       @id @default(cuid())
+  bookId          String
+  formatType      FormatType
+  priceCents      Int          // Stored in cents (e.g., $14.99 = 1499)
+  originalPrice   Int?
+  fileFormat      String       // 'EPUB, PDF', 'MP3, M4B', 'MP4, 4K HLS', 'DOCX, PDF'
+  fileSizeBytes   BigInt
+  durationSeconds Int?         // For audio/video
+  sampleLength    String?      // e.g., 'Chapter 1' or '5 min audio'
+  status          MediaStatus  @default(READY)
+  
+  // Storage paths on Cloudflare R2 / AWS S3
+  storageBucket   String       @default("kc-media-vault")
+  masterAssetKey  String       // e.g., 'vault/books/{id}/{format}/master.m4b'
+  sampleAssetKey  String       // e.g., 'samples/books/{id}/{format}/sample.mp3'
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  book            Book         @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, formatType])
+  @@map("book_formats")
+}
+
+model Purchase {
+  id            String       @id @default(cuid())
+  userId        String
+  bookId        String
+  formatType    FormatType
+  amountPaid    Int          // in cents
+  currency      String       @default("USD")
+  paymentIntent String?      // Stripe / Payment Gateway reference
+  createdAt     DateTime     @default(now())
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book          Book         @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([userId, bookId, formatType])
+  @@map("purchases")
+}
+
+model LibraryItem {
+  id            String       @id @default(cuid())
+  userId        String
+  bookId        String
+  formatType    FormatType
+  purchasedAt   DateTime     @default(now())
+  lastProgress  Int          @default(0) // Seconds for audio/video, page for text
+  downloadCount Int          @default(0)
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book          Book         @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId, formatType])
+  @@map("library_items")
+}
+
+model MediaAccessLog {
+  id             String       @id @default(cuid())
+  userId         String?
+  bookId         String
+  formatType     FormatType
+  isSampleOnly   Boolean      @default(false)
+  ipAddress      String?
+  signedTokenSig String
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+
+  user           User?        @relation(fields: [userId], references: [id])
+
+  @@map("media_access_logs")
+}
+
+model Review {
+  id               String       @id @default(cuid())
+  userId           String
+  bookId           String
+  formatPurchased  FormatType
+  rating           Int          // 1 to 5
+  title            String
+  content          String       @db.Text
+  verifiedPurchase Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book             Book         @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}

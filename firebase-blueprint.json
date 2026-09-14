@@ -1,0 +1,134 @@
+{
+  "entities": {
+    "books": {
+      "title": "Book",
+      "description": "Multi-format book catalog items with all 8 sensory dimensions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" }
+      },
+      "required": ["id", "title", "author"]
+    },
+    "reviews": {
+      "title": "Review",
+      "description": "Customer reviews and star ratings for titles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bookId": { "type": "string" },
+        "author": { "type": "string" },
+        "rating": { "type": "number" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "formatPurchased": { "type": "string" },
+        "verifiedPurchase": { "type": "boolean" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "bookId", "rating", "title", "content"]
+    },
+    "authors": {
+      "title": "AuthorProfile",
+      "description": "Author profiles with sovereign royalty stats and Drive vault links",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "penName": { "type": "string" },
+        "bio": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "payoutEmail": { "type": "string" },
+        "royaltyRate": { "type": "number" },
+        "driveFolderId": { "type": "string" }
+      },
+      "required": ["id", "penName"]
+    },
+    "user_uploads": {
+      "title": "UserUpload",
+      "description": "Uploaded materials stored in Drive and Firebase",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fileName": { "type": "string" },
+        "formatType": { "type": "string" },
+        "driveFileId": { "type": "string" },
+        "driveViewLink": { "type": "string" },
+        "fileSizeBytes": { "type": "number" },
+        "uploadedAt": { "type": "string" }
+      },
+      "required": ["id", "fileName", "formatType"]
+    },
+    "wishlists": {
+      "title": "Wishlist",
+      "description": "User saved book wishlists",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookIds": { "type": "array" }
+      },
+      "required": ["userId"]
+    },
+    "author_payout_accounts": {
+      "title": "AuthorPayoutAccount",
+      "description": "Stripe Connect payout accounts and global settlement routing for sovereign author royalties",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "accountId": { "type": "string" },
+        "accountType": { "type": "string" },
+        "country": { "type": "string" },
+        "defaultCurrency": { "type": "string" },
+        "chargesEnabled": { "type": "boolean" },
+        "payoutsEnabled": { "type": "boolean" },
+        "detailsSubmitted": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "authorId", "accountId"]
+    },
+    "audio_bookmarks": {
+      "title": "AudioBookmark",
+      "description": "User saved audiobook timestamps, chapters, and narration study notes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bookId": { "type": "string" },
+        "bookTitle": { "type": "string" },
+        "bookCoverImage": { "type": "string" },
+        "author": { "type": "string" },
+        "timestampSeconds": { "type": "number" },
+        "formattedTimestamp": { "type": "string" },
+        "chapterTitle": { "type": "string" },
+        "note": { "type": "string" },
+        "colorTag": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "bookId", "timestampSeconds", "formattedTimestamp"]
+    },
+    "blog_posts": {
+      "title": "BlogPost",
+      "description": "Author and guest community articles, literary essays, and dispatches",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "category": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "publishedAt": { "type": "string" },
+        "viewsCount": { "type": "number" },
+        "likesCount": { "type": "number" },
+        "isGuest": { "type": "boolean" }
+      },
+      "required": ["id", "title", "author", "content"]
+    }
+  }
+}

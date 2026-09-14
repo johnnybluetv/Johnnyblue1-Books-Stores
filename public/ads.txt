@@ -1,0 +1,5 @@
+# Google AdSense Authorized Digital Sellers (ads.txt)
+# Johnnyblue1 Books Stores & Knowledge Centa
+# https://johnnyblue1-knowledge-centa.web.app
+google.com, pub-9428510842095172, DIRECT, f08c47fec0942fa0
+google.com, pub-1330230443330000, DIRECT, f08c47fec0942fa0

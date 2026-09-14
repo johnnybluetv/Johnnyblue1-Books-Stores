@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+:root {
+  --font-reader: 'Literata', 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: 'Literata', 'Newsreader', Georgia, serif;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .font-serif, .font-reader {
+  font-family: 'Newsreader', 'Literata', Georgia, serif;
+}
+
+/* Snowflake drop animation for posted books at the background */
+@keyframes bookSnowfall {
+  0% {
+    transform: translateY(-100px) rotate(0deg) translateX(0px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(50vh) rotate(18deg) translateX(22px);
+  }
+  85% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(112vh) rotate(-22deg) translateX(-18px);
+    opacity: 0;
+  }
+}
+
+.animate-book-snowfall {
+  animation-name: bookSnowfall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* ========================================================================= */
+/* PRINT-FRIENDLY CSS STYLESHEET (Product Detail & Catalog Archival View)    */
+/* ========================================================================= */
+
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  @page {
+    margin: 1.2cm 1.4cm 1.4cm 1.4cm;
+    size: auto;
+  }
+
+  /* Reset body and background to pure white with crisp dark text */
+  html, body {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    font-family: var(--font-reader), Georgia, serif !important;
+    font-size: 10pt !important;
+    line-height: 1.45 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide entire web UI clutter: header, subnav, footer, floating buttons, toasts, ads, buybox buttons */
+  #frozen-top-navigation-container,
+  #global-toast-notification,
+  #cookie-consent-banner,
+  #floating-whatsapp-btn,
+  #floating-blog-pen-bubble,
+  #book-snowfall-container,
+  #flipping-book-card-floating,
+  #back-to-top-btn,
+  .no-print,
+  .screen-only,
+  header,
+  nav,
+  footer,
+  aside,
+  button:not(.print-allow),
+  .adsense-slot-container,
+  .chat-assistant-container,
+  [role="dialog"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Reveal dedicated print dossier layout */
+  .print-only {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Remove sticky and min-height constraints during print */
+  main, #root, .min-h-screen {
+    min-height: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .sticky, [class*="sticky"] {
+    position: static !important;
+  }
+
+  /* Ensure images print sharply without overflowing */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Page break helpers */
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Typography enhancements for printing */
+  h1, h2, h3, h4, h5, h6 {
+    color: #0f172a !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Tables in print */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th, td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 6px 10px !important;
+  }
+
+  /* Remove link URLs expansion or weird borders */
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
+
