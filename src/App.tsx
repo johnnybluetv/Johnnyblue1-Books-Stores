@@ -12,6 +12,8 @@ import { Storefront } from './components/Storefront';
 import { AuthorPublishStudio } from './components/AuthorPublishStudio';
 import { AuthorDashboard } from './components/AuthorDashboard';
 import { CloudLibraryView } from './components/CloudLibraryView';
+import { CustomerDigitalLibrary } from './components/CustomerDigitalLibrary';
+import { InstantCheckoutModal } from './components/InstantCheckoutModal';
 import { AuthorProfilePage } from './components/AuthorProfilePage';
 import { WishlistView } from './components/WishlistView';
 import { ReelsFeed } from './components/ReelsFeed';
@@ -28,6 +30,7 @@ import { LegalPoliciesModal, LegalTabType } from './components/LegalPoliciesModa
 import { PageFlipSoundDialog } from './components/PageFlipSoundDialog';
 import { AmazonBestSellerFlippingBookCard } from './components/AmazonBestSellerFlippingBookCard';
 import { WishlistToastNotification } from './components/WishlistToastNotification';
+import { QuickLookupDictionary } from './components/QuickLookupDictionary';
 import { BookOpen, Sparkles, ShieldCheck, ChevronUp, Film, Newspaper, Tablet, Bell, X, Globe, Lock } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from './services/i18n';
 import { scrollToTopEaseOutQuint } from './services/scrollService';
@@ -109,7 +112,7 @@ const MainLayout: React.FC = () => {
         {currentView === 'book-detail' && <ProductDetailPage />}
         {currentView === 'author-dashboard' && <AuthorDashboard />}
         {currentView === 'publish' && <AuthorPublishStudio />}
-        {currentView === 'library' && <CloudLibraryView />}
+        {(currentView === 'library' || currentView === 'my-library' || currentView === 'checkout') && <CustomerDigitalLibrary />}
         {currentView === 'author-profile' && <AuthorProfilePage />}
         {currentView === 'wishlist' && <WishlistView />}
         {currentView === 'reels' && <ReelsFeed />}
@@ -383,6 +386,11 @@ const MainLayout: React.FC = () => {
       {/* Floating Clickable Book-Shape Tab with Live 10-Second Auto-Flipping Amazon Best Sellers */}
       <AmazonBestSellerFlippingBookCard isFloating={true} instanceId="floating" />
 
+      {/* Floating Quick-Lookup Dictionary for Reader Previews */}
+      <QuickLookupDictionary />
+
+      {/* Instant Digital Checkout Route Modal */}
+      <InstantCheckoutModal />
     </div>
   );
 };

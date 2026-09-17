@@ -129,6 +129,18 @@
         "isGuest": { "type": "boolean" }
       },
       "required": ["id", "title", "author", "content"]
+    },
+    "customer_libraries": {
+      "title": "CustomerLibrary",
+      "description": "Customer digital library containing purchased formats, reading progress, and signed offline streaming tokens",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "items": { "type": "array" },
+        "folders": { "type": "array" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "items"]
     }
   }
 }

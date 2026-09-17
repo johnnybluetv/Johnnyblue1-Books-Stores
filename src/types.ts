@@ -167,6 +167,47 @@ export interface Book {
   authorWhatsapp?: string;
 }
 
+export interface AuthorSocialHandles {
+  instagram: string;
+  instagramUrl: string;
+  instagramFollowers?: string;
+  tiktok: string;
+  tiktokUrl: string;
+  tiktokFollowers?: string;
+  youtube: string;
+  youtubeUrl: string;
+  youtubeSubscribers?: string;
+  facebook: string;
+  facebookUrl: string;
+  facebookFollowers?: string;
+  linkedin: string;
+  linkedinUrl: string;
+  linkedinFollowers?: string;
+  twitter: string;
+  twitterUrl: string;
+  twitterFollowers?: string;
+}
+
+export interface AuthorBioData {
+  penName: string;
+  realName: string;
+  academicTitle?: string;
+  location: string;
+  memberSince: string;
+  birthEraOrOrigin?: string;
+  genres: string[];
+  educationOrBackground?: string;
+  notableWorks: string[];
+  publishingPhilosophy: string;
+  bioSummary: string;
+  fullBio: string;
+  totalBooksPublished: number;
+  totalReaders: number;
+  verified: boolean;
+  languagesSpoken: string[];
+  contactEmail?: string;
+}
+
 export interface AuthorProfile {
   id: string;
   penName: string;
@@ -181,6 +222,8 @@ export interface AuthorProfile {
   location: string;
   websiteUrl?: string;
   twitterHandle?: string;
+  socialHandles?: AuthorSocialHandles;
+  bioData?: AuthorBioData;
   totalBooksPublished: number;
   totalReaders: number;
   totalEarningsEstimate: number;
@@ -249,6 +292,58 @@ export interface LibraryItem {
   lastProgress?: number;
   downloadCount: number;
   driveExportLink?: string;
+  folderId?: string | null;
+  folderName?: string | null;
+  tags?: string[];
+}
+
+export interface CollectionFolder {
+  id: string;
+  name: string;
+  description?: string;
+  color: string; // e.g. 'amber', 'emerald', 'blue', 'purple', 'rose', 'indigo', 'teal'
+  iconName?: string;
+  createdAt: string;
+  updatedAt?: string;
+  isDefault?: boolean;
+}
+
+export interface LibraryExportBackup {
+  appName: string;
+  schemaVersion: string;
+  exportedAt: string;
+  exportTimestamp: number;
+  user?: {
+    name?: string;
+    email?: string;
+    uid?: string;
+  };
+  summary: {
+    totalPurchasedEditions: number;
+    totalUniqueTitles: number;
+    totalFolders: number;
+    formatsCount: Record<string, number>;
+  };
+  collectionFolders: CollectionFolder[];
+  purchasedItems: {
+    id: string;
+    bookId: string;
+    title: string;
+    subtitle?: string;
+    author: string;
+    format: FormatType;
+    formatLabel: string;
+    category: string;
+    publisher: string;
+    purchasedAt: string;
+    progressPercent: number;
+    collectionFolder: string;
+    collectionFolderId: string | null;
+    description: string;
+    isbn?: string;
+    pages?: number;
+    language?: string;
+  }[];
 }
 
 export interface PublishFormData {

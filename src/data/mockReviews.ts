@@ -1,4 +1,5 @@
-import { Review } from '../types';
+import { Review, AuthorProfile } from '../types';
+import { AUTHOR_SOCIAL_AND_BIO_DATA, getAuthorSocialAndBioData } from './authorSocialData';
 
 export const INITIAL_REVIEWS: Record<string, Review[]> = {
   'book-sovereign-creator': [
@@ -108,6 +109,8 @@ export const INITIAL_AUTHOR_PROFILES: Record<string, any> = {
     location: 'Zurich, Switzerland & San Francisco, CA',
     websiteUrl: 'https://marcussterling.creator.press',
     twitterHandle: '@MarcusSterling',
+    socialHandles: AUTHOR_SOCIAL_AND_BIO_DATA['Dr. Marcus Sterling'].socialHandles,
+    bioData: AUTHOR_SOCIAL_AND_BIO_DATA['Dr. Marcus Sterling'].bioData,
     totalBooksPublished: 4,
     totalReaders: 48920,
     totalEarningsEstimate: 124850.00,
@@ -159,6 +162,8 @@ export const INITIAL_AUTHOR_PROFILES: Record<string, any> = {
     location: 'London, UK & Boston, MA',
     websiteUrl: 'https://elenavance.io',
     twitterHandle: '@ElenaVanceMind',
+    socialHandles: AUTHOR_SOCIAL_AND_BIO_DATA['Elena Vance'].socialHandles,
+    bioData: AUTHOR_SOCIAL_AND_BIO_DATA['Elena Vance'].bioData,
     totalBooksPublished: 2,
     totalReaders: 31200,
     totalEarningsEstimate: 89400.00,

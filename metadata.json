@@ -1,6 +1,6 @@
 {
   "name": "Johnnyblue1 Books Stores - Knowledge Centa",
-  "description": "10-Dimension bookstore & publishing platform featuring AI Assistant Copilot, TikTok-style BookTok Reels, indexable community Blog, Silk & Cotton editions, Dedicated E-Ink hardware, and WhatsApp-ready SEO metadata.",
+  "description": "10-Dimension bookstore & publishing platform featuring Customer Digital Library with in-browser media players, Collection Folders, local JSON backup export, AI Assistant Copilot, BookTok Reels, indexable Blog, and Cloudflare R2 storage.",
   "requestFramePermissions": ["microphone", "camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

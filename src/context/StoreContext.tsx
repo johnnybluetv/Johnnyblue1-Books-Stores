@@ -15,7 +15,9 @@ import {
   SearchHistoryItem,
   AppUser,
   AudioBookmark,
-  WishlistToastState
+  WishlistToastState,
+  CollectionFolder,
+  LibraryExportBackup
 } from '../types';
 import { INITIAL_BOOKS, CATEGORIES } from '../data/mockBooks';
 import { INITIAL_REELS } from '../data/mockReels';
@@ -27,6 +29,7 @@ import { soundService } from '../services/soundService';
 import { ShareModal, ShareData } from '../components/ShareModal';
 import { OfflineReadingModal } from '../components/OfflineReadingModal';
 import { AuthModal } from '../components/AuthModal';
+import { AuthorSocialBioModal } from '../components/AuthorSocialBioModal';
 import { LanguageCode, SUPPORTED_LANGUAGES, getTranslation, formatCurrency, getLanguageDirection } from '../services/i18n';
 import { 
   saveBookToFirestore, 
@@ -40,6 +43,8 @@ import {
   fetchBlogPostsFromFirestore,
   saveReelToFirestore,
   fetchReelsFromFirestore,
+  saveCustomerLibraryToFirestore,
+  fetchCustomerLibraryFromFirestore,
   auth,
   mapFirebaseUserToAppUser,
   logOutAuth
@@ -47,7 +52,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import confetti from 'canvas-confetti';
 
-export type ActiveView = 'store' | 'book-detail' | 'publish' | 'author-dashboard' | 'library' | 'author-profile' | 'wishlist' | 'reels' | 'blog' | 'waitlist';
+export type ActiveView = 'store' | 'book-detail' | 'publish' | 'author-dashboard' | 'library' | 'my-library' | 'author-profile' | 'wishlist' | 'reels' | 'blog' | 'waitlist' | 'checkout';
 
 interface StoreContextType {
   // 5-Pillar Authentication & Guest Browsing
@@ -120,6 +125,28 @@ interface StoreContextType {
   clearCart: () => void;
   buyNow: (book: Book, format: FormatType) => void;
   checkoutCart: () => void;
+  // Customer Digital Library & In-Browser Media Player
+  activeLibraryItem: LibraryItem | null;
+  setActiveLibraryItem: (item: LibraryItem | null) => void;
+  openInCustomerLibrary: (book: Book, format?: FormatType) => void;
+  claimWelcomeReaderPass: () => void;
+  // Collection Folders & Local Backup Export
+  collectionFolders: CollectionFolder[];
+  createCollectionFolder: (name: string, color?: string, description?: string) => CollectionFolder;
+  updateCollectionFolder: (folderId: string, name: string, color?: string) => void;
+  deleteCollectionFolder: (folderId: string) => void;
+  assignItemToFolder: (itemId: string, folderId: string | null) => void;
+  exportLibraryBackupJson: () => void;
+  // Instant Digital Checkout Route
+  checkoutState: {
+    isOpen: boolean;
+    book: Book | null;
+    format: FormatType | null;
+    isProcessing: boolean;
+  };
+  triggerCheckout: (book: Book, format: FormatType) => void;
+  cancelCheckout: () => void;
+  completeCheckout: (book: Book, format: FormatType) => void;
   openLookInside: (book: Book, format?: FormatType) => void;
   closeLookInside: () => void;
   publishBook: (data: PublishFormData) => Promise<Book>;
@@ -165,6 +192,17 @@ interface StoreContextType {
   toggleFollowAuthor: (authorName: string) => boolean;
   notifyNewAssetRelease: (authorName: string, assetTitle: string, assetType?: string) => void;
   setNotificationMessage: (msg: string | null) => void;
+  // Author Social Media Follow (In-Platform) & Bio-Data Modal
+  followedSocialHandles: Record<string, boolean>;
+  isFollowingSocial: (authorName: string, platform: string) => boolean;
+  toggleFollowSocial: (authorName: string, platform: string) => boolean;
+  followAllSocials: (authorName: string) => void;
+  unfollowAllSocials: (authorName: string) => void;
+  getAuthorFollowedSocialCount: (authorName: string) => number;
+  isAuthorSocialModalOpen: boolean;
+  selectedAuthorForSocialModal: string | null;
+  openAuthorSocialModal: (authorName: string) => void;
+  closeAuthorSocialModal: () => void;
   // Audio Bookmarks (Timestamps, Chapters & Notes)
   audioBookmarks: AudioBookmark[];
   addAudioBookmark: (data: Omit<AudioBookmark, 'id' | 'createdAt'>) => Promise<AudioBookmark>;
@@ -220,10 +258,37 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Listen to Firebase auth changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const mapped = mapFirebaseUserToAppUser(fbUser);
         setUser(mapped);
+        try {
+          const remoteData = await fetchCustomerLibraryFromFirestore(fbUser.uid);
+          if (remoteData?.items && remoteData.items.length > 0) {
+            setLibrary((prev) => {
+              const combined = [...remoteData.items, ...prev.filter(p => !remoteData.items.some(r => r.bookId === p.bookId && r.format === p.format))];
+              try {
+                localStorage.setItem('kc_user_library', JSON.stringify(combined));
+              } catch {
+                // ignore
+              }
+              return combined;
+            });
+          }
+          if (remoteData?.folders && remoteData.folders.length > 0) {
+            setCollectionFolders((prev) => {
+              const merged = [...remoteData.folders, ...prev.filter(p => !remoteData.folders.some(r => r.id === p.id))];
+              try {
+                localStorage.setItem('kc_collection_folders', JSON.stringify(merged));
+              } catch {
+                // ignore
+              }
+              return merged;
+            });
+          }
+        } catch {
+          // ignore
+        }
       }
     });
     return () => unsubscribe();
@@ -285,7 +350,49 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const [activeBook, setActiveBook] = useState<Book | null>(() => (books.length > 0 ? books[0] : null));
   const [activeFormat, setActiveFormat] = useState<FormatType>('ebook');
-  const [currentView, setCurrentView] = useState<ActiveView>('store');
+  const [currentView, setCurrentViewState] = useState<ActiveView>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path === '/my-library' || path === '/library') return 'my-library';
+      if (path === '/checkout') return 'checkout';
+    }
+    return 'store';
+  });
+
+  const setCurrentView = (view: ActiveView) => {
+    setCurrentViewState(view);
+    if (typeof window !== 'undefined') {
+      if (view === 'my-library' || view === 'library') {
+        if (window.location.pathname !== '/my-library') {
+          window.history.pushState(null, '', '/my-library');
+        }
+      } else if (view === 'checkout') {
+        if (window.location.pathname !== '/checkout') {
+          window.history.pushState(null, '', '/checkout');
+        }
+      } else if (view === 'store') {
+        if (window.location.pathname !== '/') {
+          window.history.pushState(null, '', '/');
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === '/my-library' || path === '/library') {
+        setCurrentViewState('my-library');
+      } else if (path === '/checkout') {
+        setCurrentViewState('checkout');
+      } else if (path === '/') {
+        setCurrentViewState('store');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedFormatFilter, setSelectedFormatFilter] = useState<'all' | FormatType>('all');
@@ -348,6 +455,56 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // ignore
     }
     return [];
+  });
+
+  const [activeLibraryItem, setActiveLibraryItem] = useState<LibraryItem | null>(() => {
+    try {
+      const saved = localStorage.getItem('kc_user_library');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
+
+  const DEFAULT_COLLECTION_FOLDERS: CollectionFolder[] = useMemo(() => [
+    { id: 'folder-favorites', name: 'Favorites', description: 'Cherished reads & standout editions', color: 'amber', iconName: 'star', createdAt: '2026-01-01T00:00:00.000Z', isDefault: true },
+    { id: 'folder-current', name: 'Currently Reading', description: 'Active titles in progress', color: 'emerald', iconName: 'book-open', createdAt: '2026-01-01T00:00:00.000Z', isDefault: true },
+    { id: 'folder-audio', name: 'Audiobook Vault', description: 'Spoken word & audio listening sessions', color: 'purple', iconName: 'headphones', createdAt: '2026-01-01T00:00:00.000Z', isDefault: true },
+    { id: 'folder-study', name: 'Deep Study & Philosophy', description: 'Scholarly texts, references & notes', color: 'indigo', iconName: 'bookmark', createdAt: '2026-01-01T00:00:00.000Z', isDefault: true }
+  ], []);
+
+  const [collectionFolders, setCollectionFolders] = useState<CollectionFolder[]>(() => {
+    try {
+      const saved = localStorage.getItem('kc_collection_folders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [
+      { id: 'folder-favorites', name: 'Favorites', description: 'Cherished reads & standout editions', color: 'amber', iconName: 'star', createdAt: '2026-01-01T00:00:00.000Z', isDefault: true },
+      { id: 'folder-current', name: 'Currently Reading', description: 'Active titles in progress', color: 'emerald', iconName: 'book-open', createdAt: '2026-01-01T00:00:00.000Z', isDefault: true },
+      { id: 'folder-audio', name: 'Audiobook Vault', description: 'Spoken word & audio listening sessions', color: 'purple', iconName: 'headphones', createdAt: '2026-01-01T00:00:00.000Z', isDefault: true },
+      { id: 'folder-study', name: 'Deep Study & Philosophy', description: 'Scholarly texts, references & notes', color: 'indigo', iconName: 'bookmark', createdAt: '2026-01-01T00:00:00.000Z', isDefault: true }
+    ];
+  });
+
+  const [checkoutState, setCheckoutState] = useState<{
+    isOpen: boolean;
+    book: Book | null;
+    format: FormatType | null;
+    isProcessing: boolean;
+  }>({
+    isOpen: false,
+    book: null,
+    format: null,
+    isProcessing: false
   });
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -1249,6 +1406,127 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
+  // --- Author Social Media Follow (In-Platform) State & Handlers ---
+  const [followedSocialHandles, setFollowedSocialHandles] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('kc_followed_social_handles');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kc_followed_social_handles', JSON.stringify(followedSocialHandles));
+    } catch {
+      // ignore
+    }
+  }, [followedSocialHandles]);
+
+  const [isAuthorSocialModalOpen, setIsAuthorSocialModalOpen] = useState(false);
+  const [selectedAuthorForSocialModal, setSelectedAuthorForSocialModal] = useState<string | null>(null);
+
+  const openAuthorSocialModal = (authorName: string) => {
+    setSelectedAuthorForSocialModal(authorName);
+    setIsAuthorSocialModalOpen(true);
+  };
+
+  const closeAuthorSocialModal = () => {
+    setIsAuthorSocialModalOpen(false);
+  };
+
+  const isFollowingSocial = (authorName: string, platform: string): boolean => {
+    if (!authorName || !platform) return false;
+    const key = `${authorName.toLowerCase().trim()}_${platform.toLowerCase().trim()}`;
+    return !!followedSocialHandles[key];
+  };
+
+  const toggleFollowSocial = (authorName: string, platform: string): boolean => {
+    if (!authorName || !platform) return false;
+    const key = `${authorName.toLowerCase().trim()}_${platform.toLowerCase().trim()}`;
+    const currentlyFollowing = !!followedSocialHandles[key];
+    const newStatus = !currentlyFollowing;
+
+    setFollowedSocialHandles((prev) => {
+      const next = { ...prev };
+      if (newStatus) {
+        next[key] = true;
+      } else {
+        delete next[key];
+      }
+      return next;
+    });
+
+    const platformLabels: Record<string, string> = {
+      instagram: 'Instagram',
+      tiktok: 'TikTok',
+      youtube: 'YouTube',
+      facebook: 'Facebook',
+      linkedin: 'LinkedIn',
+      twitter: 'X (Twitter)'
+    };
+    const pName = platformLabels[platform.toLowerCase()] || platform;
+
+    if (newStatus) {
+      confetti({
+        particleCount: 45,
+        spread: 65,
+        origin: { y: 0.6 }
+      });
+      showNotification(`✓ Subscribed to ${authorName}'s verified ${pName} within the platform!`);
+    } else {
+      showNotification(`Unfollowed ${authorName} on ${pName}.`);
+    }
+
+    return newStatus;
+  };
+
+  const followAllSocials = (authorName: string) => {
+    if (!authorName) return;
+    const platforms = ['instagram', 'tiktok', 'youtube', 'facebook', 'linkedin', 'twitter'];
+    const trimmed = authorName.toLowerCase().trim();
+
+    setFollowedSocialHandles((prev) => {
+      const next = { ...prev };
+      platforms.forEach((p) => {
+        next[`${trimmed}_${p}`] = true;
+      });
+      return next;
+    });
+
+    confetti({
+      particleCount: 80,
+      spread: 90,
+      origin: { y: 0.5 }
+    });
+    showNotification(`✓ You are now following all 6 social media handles for ${authorName} directly within Knowledge Centa!`);
+  };
+
+  const unfollowAllSocials = (authorName: string) => {
+    if (!authorName) return;
+    const platforms = ['instagram', 'tiktok', 'youtube', 'facebook', 'linkedin', 'twitter'];
+    const trimmed = authorName.toLowerCase().trim();
+
+    setFollowedSocialHandles((prev) => {
+      const next = { ...prev };
+      platforms.forEach((p) => {
+        delete next[`${trimmed}_${p}`];
+      });
+      return next;
+    });
+
+    showNotification(`Unfollowed all social media handles for ${authorName}.`);
+  };
+
+  const getAuthorFollowedSocialCount = (authorName: string): number => {
+    if (!authorName) return 0;
+    const platforms = ['instagram', 'tiktok', 'youtube', 'facebook', 'linkedin', 'twitter'];
+    const trimmed = authorName.toLowerCase().trim();
+    return platforms.filter((p) => !!followedSocialHandles[`${trimmed}_${p}`]).length;
+  };
+
   const addToCart = (book: Book, format: FormatType) => {
     requireAuth(`Sign in to add "${book.title.slice(0, 24)}..." to your Cart`, () => {
       const existing = cart.find((i) => i.bookId === book.id && i.format === format);
@@ -1282,35 +1560,74 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setCart([]);
   };
 
-  const buyNow = (book: Book, format: FormatType) => {
-    requireAuth(`Sign in to instantly purchase "${book.title.slice(0, 24)}..."`, () => {
+  const triggerCheckout = (book: Book, format: FormatType) => {
+    requireAuth(`Sign in to purchase and stream "${book.title.slice(0, 24)}..."`, () => {
       if (isBookPurchased(book.id, format)) {
-        showNotification(`You already own this ${format} in your Knowledge Centa Library.`);
-        setCurrentView('library');
+        showNotification(`You already own this ${format} edition in your Customer Digital Library.`);
+        const existing = library.find((i) => i.bookId === book.id && i.format === format);
+        if (existing) setActiveLibraryItem(existing);
+        setCurrentView('my-library');
         return;
       }
-
-      const newLibItem: LibraryItem = {
-        id: `lib-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-        bookId: book.id,
+      setCheckoutState({
+        isOpen: true,
         book,
         format,
-        purchasedAt: new Date().toISOString(),
-        downloadCount: 0
-      };
-
-      setLibrary((prev) => [newLibItem, ...prev]);
-
-      // trigger celebration
-      confetti({
-        particleCount: 80,
-        spread: 60,
-        origin: { y: 0.6 }
+        isProcessing: false
       });
-
-      showNotification(`Order Placed! "${book.title.slice(0, 30)}..." has been added to your Library.`);
-      setCurrentView('library');
+      if (typeof window !== 'undefined' && window.location.pathname !== '/checkout') {
+        window.history.pushState(null, '', '/checkout');
+      }
     });
+  };
+
+  const cancelCheckout = () => {
+    setCheckoutState({ isOpen: false, book: null, format: null, isProcessing: false });
+    if (typeof window !== 'undefined' && window.location.pathname === '/checkout') {
+      window.history.pushState(null, '', '/');
+    }
+  };
+
+  const completeCheckout = (book: Book, format: FormatType) => {
+    const newLibItem: LibraryItem = {
+      id: `lib-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      bookId: book.id,
+      book,
+      format,
+      purchasedAt: new Date().toISOString(),
+      downloadCount: 0,
+      lastProgress: 0
+    };
+
+    setLibrary((prev) => {
+      const updated = [newLibItem, ...prev];
+      try {
+        localStorage.setItem('kc_user_library', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      if (user?.uid) {
+        saveCustomerLibraryToFirestore(user.uid, updated);
+      }
+      return updated;
+    });
+
+    setActiveLibraryItem(newLibItem);
+    setCheckoutState({ isOpen: false, book: null, format: null, isProcessing: false });
+
+    // trigger celebration
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+
+    showNotification(`🎉 Order confirmed! "${book.title}" is now streaming in your Customer Digital Library.`);
+    setCurrentView('my-library');
+  };
+
+  const buyNow = (book: Book, format: FormatType) => {
+    triggerCheckout(book, format);
   };
 
   const checkoutCart = () => {
@@ -1323,10 +1640,27 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         book: item.book,
         format: item.format,
         purchasedAt: new Date().toISOString(),
-        downloadCount: 0
+        downloadCount: 0,
+        lastProgress: 0
       }));
 
-      setLibrary((prev) => [...newItems, ...prev]);
+      setLibrary((prev) => {
+        const updated = [...newItems, ...prev];
+        try {
+          localStorage.setItem('kc_user_library', JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        if (user?.uid) {
+          saveCustomerLibraryToFirestore(user.uid, updated);
+        }
+        return updated;
+      });
+
+      if (newItems.length > 0) {
+        setActiveLibraryItem(newItems[0]);
+      }
+
       setCart([]);
       setCartDrawerOpen(false);
 
@@ -1336,9 +1670,313 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         origin: { y: 0.55 }
       });
 
-      showNotification(`Thank you! ${newItems.length} items added to your Knowledge Centa Cloud Library.`);
-      setCurrentView('library');
+      showNotification(`Thank you! ${newItems.length} items added to your Customer Digital Library.`);
+      setCurrentView('my-library');
     });
+  };
+
+  const openInCustomerLibrary = (book: Book, format?: FormatType) => {
+    const targetFormat = format || 'ebook';
+    const existing = library.find((i) => i.bookId === book.id && i.format === targetFormat);
+    if (existing) {
+      setActiveLibraryItem(existing);
+      setCurrentView('my-library');
+    } else {
+      triggerCheckout(book, targetFormat);
+    }
+  };
+
+  const claimWelcomeReaderPass = () => {
+    const welcomeBook = books.length > 0 ? books[0] : null;
+    if (!welcomeBook) return;
+
+    const sampleFormats: { format: FormatType; folderId: string; folderName: string }[] = [
+      { format: 'ebook', folderId: 'folder-current', folderName: 'Currently Reading' },
+      { format: 'audiobook', folderId: 'folder-audio', folderName: 'Audiobook Vault' },
+      { format: 'videobook', folderId: 'folder-favorites', folderName: 'Favorites' }
+    ];
+
+    const newItems: LibraryItem[] = sampleFormats.map(({ format, folderId, folderName }, idx) => ({
+      id: `lib-welcome-${format}-${Date.now()}-${idx}`,
+      bookId: welcomeBook.id,
+      book: welcomeBook,
+      format,
+      purchasedAt: new Date().toISOString(),
+      downloadCount: 0,
+      lastProgress: 15,
+      folderId,
+      folderName
+    }));
+
+    setLibrary((prev) => {
+      const updated = [...newItems, ...prev.filter(p => p.bookId !== welcomeBook.id)];
+      try {
+        localStorage.setItem('kc_user_library', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      if (user?.uid) {
+        saveCustomerLibraryToFirestore(user.uid, updated, collectionFolders);
+      }
+      return updated;
+    });
+
+    setActiveLibraryItem(newItems[0]);
+    confetti({
+      particleCount: 80,
+      spread: 60,
+      origin: { y: 0.6 }
+    });
+    showNotification(`Welcome Reader Pass claimed! "${welcomeBook.title}" multi-format editions are now streaming in your Customer Digital Library.`);
+    setCurrentView('my-library');
+  };
+
+  // Collection Folders Operations
+  const createCollectionFolder = (name: string, color: string = 'amber', description: string = ''): CollectionFolder => {
+    const trimmed = name.trim() || 'Untitled Collection';
+    const newFolder: CollectionFolder = {
+      id: `folder-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      name: trimmed,
+      description: description.trim(),
+      color: color || 'amber',
+      iconName: 'folder',
+      createdAt: new Date().toISOString()
+    };
+
+    setCollectionFolders((prev) => {
+      const updated = [...prev, newFolder];
+      try {
+        localStorage.setItem('kc_collection_folders', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      if (user?.uid) {
+        saveCustomerLibraryToFirestore(user.uid, library, updated);
+      }
+      return updated;
+    });
+
+    showNotification(`📁 Collection folder "${trimmed}" created!`);
+    return newFolder;
+  };
+
+  const updateCollectionFolder = (folderId: string, name: string, color?: string) => {
+    const trimmed = name.trim();
+    setCollectionFolders((prev) => {
+      const updated = prev.map((f) => {
+        if (f.id === folderId) {
+          return {
+            ...f,
+            name: trimmed || f.name,
+            color: color || f.color,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return f;
+      });
+      try {
+        localStorage.setItem('kc_collection_folders', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      if (user?.uid) {
+        saveCustomerLibraryToFirestore(user.uid, library, updated);
+      }
+      return updated;
+    });
+
+    // Update matching items in library
+    setLibrary((prev) => {
+      const updated = prev.map((item) => {
+        if (item.folderId === folderId) {
+          return {
+            ...item,
+            folderName: trimmed || item.folderName
+          };
+        }
+        return item;
+      });
+      try {
+        localStorage.setItem('kc_user_library', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+
+    showNotification(`Collection folder updated.`);
+  };
+
+  const deleteCollectionFolder = (folderId: string) => {
+    const folderToDelete = collectionFolders.find(f => f.id === folderId);
+    setCollectionFolders((prev) => {
+      const updated = prev.filter((f) => f.id !== folderId);
+      try {
+        localStorage.setItem('kc_collection_folders', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      if (user?.uid) {
+        saveCustomerLibraryToFirestore(user.uid, library, updated);
+      }
+      return updated;
+    });
+
+    // Clear folder tags on library items
+    setLibrary((prev) => {
+      const updated = prev.map((item) => {
+        if (item.folderId === folderId) {
+          return {
+            ...item,
+            folderId: null,
+            folderName: null
+          };
+        }
+        return item;
+      });
+      try {
+        localStorage.setItem('kc_user_library', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+
+    showNotification(`Collection folder "${folderToDelete?.name || ''}" deleted.`);
+  };
+
+  const assignItemToFolder = (itemId: string, folderId: string | null) => {
+    const targetFolder = folderId ? collectionFolders.find(f => f.id === folderId) : null;
+    const folderName = targetFolder ? targetFolder.name : null;
+
+    setLibrary((prev) => {
+      const updated = prev.map((item) => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            folderId: folderId || null,
+            folderName: folderName || null
+          };
+        }
+        return item;
+      });
+      try {
+        localStorage.setItem('kc_user_library', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      if (user?.uid) {
+        saveCustomerLibraryToFirestore(user.uid, updated, collectionFolders);
+      }
+      return updated;
+    });
+
+    setActiveLibraryItem((prev) => {
+      if (prev && prev.id === itemId) {
+        return {
+          ...prev,
+          folderId: folderId || null,
+          folderName: folderName || null
+        };
+      }
+      return prev;
+    });
+
+    if (targetFolder) {
+      showNotification(`Added to "${targetFolder.name}" folder.`);
+    } else {
+      showNotification(`Item removed from collection folder.`);
+    }
+  };
+
+  // Export Library Content Metadata as JSON file for local backup
+  const exportLibraryBackupJson = () => {
+    if (library.length === 0) {
+      showNotification('Your Customer Digital Library is currently empty. Acquire or claim editions to export local backup.');
+      return;
+    }
+
+    const formatNameMap: Record<string, string> = {
+      ebook: 'eBook / Digital Text',
+      audiobook: 'Master Audiobook',
+      videobook: '4K Ultra HD Video Book',
+      musical_album: 'Musical Audio & Scores',
+      manuscript: 'Archival Manuscript',
+      hardcover: 'Hardcover Collector Edition',
+      papercover: 'Paperback Softcover',
+      pendrive_sd: 'Encrypted Pen Drive / SD Card',
+      silk_cotton: 'Raw Silk & Cotton Scroll',
+      digital_device: 'Sovereign Offline Dedicated Reader'
+    };
+
+    const backupData: LibraryExportBackup = {
+      appName: 'Knowledge Centa - Customer Digital Library',
+      schemaVersion: '2.0.0',
+      exportedAt: new Date().toISOString(),
+      exportTimestamp: Date.now(),
+      user: user ? {
+        name: user.displayName,
+        email: user.email,
+        uid: user.uid
+      } : undefined,
+      summary: {
+        totalPurchasedEditions: library.length,
+        totalUniqueTitles: new Set(library.map((i) => i.bookId)).size,
+        totalFolders: collectionFolders.length,
+        formatsCount: library.reduce((acc, item) => {
+          acc[item.format] = (acc[item.format] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      },
+      collectionFolders: collectionFolders.map(f => ({
+        id: f.id,
+        name: f.name,
+        description: f.description || '',
+        color: f.color,
+        iconName: f.iconName,
+        createdAt: f.createdAt,
+        isDefault: f.isDefault
+      })),
+      purchasedItems: library.map((item) => ({
+        id: item.id,
+        bookId: item.bookId,
+        title: item.book.title,
+        subtitle: item.book.subtitle,
+        author: item.book.author,
+        format: item.format,
+        formatLabel: formatNameMap[item.format] || item.format,
+        category: item.book.category,
+        publisher: item.book.publisher,
+        purchasedAt: item.purchasedAt,
+        progressPercent: item.lastProgress || 0,
+        collectionFolder: item.folderName || 'Unassigned',
+        collectionFolderId: item.folderId || null,
+        description: item.book.description,
+        isbn: item.book.isbn,
+        pages: item.book.pages,
+        language: item.book.language
+      }))
+    };
+
+    const jsonString = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.href = url;
+    downloadAnchor.download = `knowledge-centa-library-backup-${dateStr}.json`;
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    document.body.removeChild(downloadAnchor);
+    URL.revokeObjectURL(url);
+
+    confetti({
+      particleCount: 70,
+      spread: 60,
+      origin: { y: 0.6 }
+    });
+
+    showNotification(`💾 Library metadata exported successfully! Downloaded local backup with ${library.length} editions.`);
   };
 
   const openLookInside = (book: Book, format?: FormatType) => {
@@ -2003,6 +2641,20 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         clearCart,
         buyNow,
         checkoutCart,
+        activeLibraryItem,
+        setActiveLibraryItem,
+        openInCustomerLibrary,
+        claimWelcomeReaderPass,
+        collectionFolders,
+        createCollectionFolder,
+        updateCollectionFolder,
+        deleteCollectionFolder,
+        assignItemToFolder,
+        exportLibraryBackupJson,
+        checkoutState,
+        triggerCheckout,
+        cancelCheckout,
+        completeCheckout,
         openLookInside,
         closeLookInside,
         publishBook,
@@ -2045,6 +2697,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleFollowAuthor,
         notifyNewAssetRelease,
         setNotificationMessage,
+        // Author Social Media Follow (In-Platform) & Bio-Data Modal
+        followedSocialHandles,
+        isFollowingSocial,
+        toggleFollowSocial,
+        followAllSocials,
+        unfollowAllSocials,
+        getAuthorFollowedSocialCount,
+        isAuthorSocialModalOpen,
+        selectedAuthorForSocialModal,
+        openAuthorSocialModal,
+        closeAuthorSocialModal,
         audioBookmarks,
         addAudioBookmark,
         deleteAudioBookmark,
@@ -2074,6 +2737,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         onClose={closeAuthModal}
         actionPrompt={authModalPrompt}
         onSuccess={completePendingAuthAction}
+      />
+      <AuthorSocialBioModal
+        isOpen={isAuthorSocialModalOpen}
+        onClose={closeAuthorSocialModal}
+        authorName={selectedAuthorForSocialModal}
       />
     </StoreContext.Provider>
   );

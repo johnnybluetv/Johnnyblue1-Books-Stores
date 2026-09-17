@@ -25,5 +25,8 @@ service cloud.firestore {
     match /blog_posts/{postId} {
       allow read, write: if true;
     }
+    match /customer_libraries/{userId} {
+      allow read, write: if true;
+    }
   }
 }

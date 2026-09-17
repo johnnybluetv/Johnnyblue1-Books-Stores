@@ -57,6 +57,7 @@ export const ProductDetailPage: React.FC = () => {
     addToCart,
     buyNow,
     openLookInside,
+    openInCustomerLibrary,
     isBookPurchased,
     setCurrentView,
     setApiInspectorOpen,
@@ -65,6 +66,8 @@ export const ProductDetailPage: React.FC = () => {
     setSelectedWaitlistDimension,
     isFollowingAuthor,
     toggleFollowAuthor,
+    openAuthorSocialModal,
+    getAuthorFollowedSocialCount,
     t,
     formatPrice,
     user,
@@ -372,16 +375,20 @@ export const ProductDetailPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+            <div className="pt-1 flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-500">
               <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
                 <Award className="w-3 h-3 text-amber-600" />
                 Verified Sovereign Creator
               </span>
               <button
-                onClick={() => setCurrentView('author-profile')}
-                className="text-amber-700 font-semibold hover:underline"
+                id="pdp-sidebar-social-bio-btn"
+                type="button"
+                onClick={() => openAuthorSocialModal(activeBook.author)}
+                className="text-pink-700 font-bold hover:underline flex items-center gap-1"
+                title="View 6 social media handles & bio-data"
               >
-                Inspect Vault &rarr;
+                <Share2 className="w-3 h-3 text-pink-600" />
+                <span>6 Socials & Bio ({getAuthorFollowedSocialCount(activeBook.author)}/6)</span>
               </button>
             </div>
           </div>
@@ -881,7 +888,20 @@ export const ProductDetailPage: React.FC = () => {
                       <Users className="w-4 h-4 text-amber-600" />
                       <span className="text-sm">About the Author: {activeBook.author}</span>
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        id="pdp-author-social-bio-btn"
+                        type="button"
+                        onClick={() => openAuthorSocialModal(activeBook.author)}
+                        className="px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs bg-gradient-to-r from-pink-600 via-rose-600 to-amber-600 hover:from-pink-700 hover:to-amber-700 text-white active:scale-95"
+                        title="Display Instagram, TikTok, YouTube, Facebook, LinkedIn, X handles & Bio-Data"
+                      >
+                        <Share2 className="w-3 h-3 text-amber-200" />
+                        <span>Social Handles (6) & Bio-Data</span>
+                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-white/20 text-white">
+                          {getAuthorFollowedSocialCount(activeBook.author)}/6
+                        </span>
+                      </button>
                       <button
                         id="follow-author-detail-btn"
                         onClick={() => toggleFollowAuthor(activeBook.author)}
@@ -906,7 +926,7 @@ export const ProductDetailPage: React.FC = () => {
                       </button>
                       <button
                         onClick={() => setCurrentView('author-profile')}
-                        className="text-amber-700 font-bold hover:underline"
+                        className="text-amber-700 font-bold hover:underline text-xs"
                       >
                         Visit Author Profile &rarr;
                       </button>
@@ -977,14 +997,24 @@ export const ProductDetailPage: React.FC = () => {
 
             {/* Tab 2: Sample Excerpt & Manuscript Scans (Enhanced Preview) */}
             {activeTab === 'toc' && (
-              <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-5 text-xs">
+              <div 
+                id="pdp-sample-preview"
+                data-book-preview="true"
+                className="bg-white p-5 rounded-xl border border-slate-200 space-y-5 text-xs book-preview-content"
+              >
                 {/* Header & Quick Action */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
-                      Sample Reader & Codex Preview
-                    </span>
-                    <div className="font-bold text-slate-900 text-base font-serif">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
+                        Sample Reader & Codex Preview
+                      </span>
+                      <span className="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/80 font-medium inline-flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 text-amber-600" />
+                        Quick Lookup: Double-click any word for definition
+                      </span>
+                    </div>
+                    <div className="font-bold text-slate-900 text-base font-serif mt-0.5">
                       {activeBook.chapterOnePreview.title}
                     </div>
                   </div>
@@ -1236,10 +1266,11 @@ export const ProductDetailPage: React.FC = () => {
                   </div>
                   <button
                     id="buybox-access-library-btn"
-                    onClick={() => setCurrentView('library')}
-                    className="w-full py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-semibold text-xs transition cursor-pointer"
+                    onClick={() => openInCustomerLibrary(activeBook, activeFormat)}
+                    className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-amber-300 rounded-full font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 border border-amber-400/30 shadow-xs"
                   >
-                    Open in Your Library
+                    <span>Stream in /my-library</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
                   </button>
                 </div>
               ) : activeFormat === 'hardcover' || activeFormat === 'papercover' ? (

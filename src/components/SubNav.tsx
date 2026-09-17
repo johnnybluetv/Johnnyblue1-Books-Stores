@@ -328,6 +328,24 @@ export const SubNav: React.FC = () => {
                     <Heart className="w-3.5 h-3.5 text-rose-400" />
                     <span>{t('wish_list')}</span>
                   </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView('my-library');
+                      setIsExploreOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3.5 py-2 text-left text-xs hover:bg-slate-800 transition cursor-pointer ${
+                      currentView === 'my-library' || currentView === 'library' ? 'bg-amber-400/20 text-amber-300 font-bold' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <BookText className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Customer Digital Library</span>
+                    </div>
+                    <span className="text-[9px] bg-amber-400 text-slate-950 font-bold px-1.5 py-0.5 rounded">
+                      /my-library
+                    </span>
+                  </button>
                 </div>
               </div>
             )}

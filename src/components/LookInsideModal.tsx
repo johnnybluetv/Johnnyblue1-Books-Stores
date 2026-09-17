@@ -407,6 +407,8 @@ export const LookInsideModal: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
+        id="look-inside-modal-container"
+        data-book-preview="true"
         className="bg-white rounded-xl shadow-2xl border border-slate-700 w-full max-w-5xl h-[92vh] max-h-[850px] flex flex-col overflow-hidden text-slate-900"
         role="dialog"
         aria-modal="true"
@@ -1058,6 +1060,15 @@ export const LookInsideModal: React.FC = () => {
                       <span className="hidden md:inline">Bionic Flow</span>
                     </button>
 
+                    {/* Quick Dictionary Active Indicator */}
+                    <div 
+                      className="hidden lg:flex items-center gap-1 px-2 py-1 bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-lg text-[10px] font-semibold select-none border border-amber-500/20"
+                      title="Double-click or select any word to see its instant definition"
+                    >
+                      <BookOpen className="w-3 h-3 text-amber-600" />
+                      <span>Quick Dictionary (Double-Click)</span>
+                    </div>
+
                     {/* Search Toggle */}
                     <button
                       id="reader-search-toggle"
@@ -1312,7 +1323,11 @@ export const LookInsideModal: React.FC = () => {
                 )}
 
                 {/* 5. Main Reader Stage */}
-                <div className="flex-1 overflow-y-auto px-6 sm:px-12 py-10">
+                <div 
+                  id="reader-stage"
+                  data-book-preview="true"
+                  className="flex-1 overflow-y-auto px-6 sm:px-12 py-10 book-preview-content"
+                >
                   <div className={`${widthClass} mx-auto space-y-8`}>
                     
                     {/* Chapter Header */}

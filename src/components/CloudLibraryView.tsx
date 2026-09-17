@@ -13,11 +13,36 @@ import {
   Lock,
   Bookmark,
   Trash2,
-  Clock
+  Clock,
+  Search,
+  X
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { FormatType, LibraryItem } from '../types';
 import { requestBookAccess } from '../services/secureDeliveryApi';
+
+const highlightMatch = (text: string, query: string) => {
+  if (!query.trim()) return text;
+  const q = query.trim();
+  const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, index) => 
+        part.toLowerCase() === q.toLowerCase() ? (
+          <mark 
+            key={index} 
+            className="bg-amber-300 text-slate-950 font-bold px-0.5 rounded"
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+};
 
 export const CloudLibraryView: React.FC = () => {
   const {
@@ -34,12 +59,17 @@ export const CloudLibraryView: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'items' | 'bookmarks'>('items');
   const [filterFormat, setFilterFormat] = useState<'all' | FormatType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadSuccessMessage, setDownloadSuccessMessage] = useState<string | null>(null);
 
   const filteredLibrary = library.filter((item) => {
-    if (filterFormat === 'all') return true;
-    return item.format === filterFormat;
+    const matchesFormat = filterFormat === 'all' || item.format === filterFormat;
+    const query = searchQuery.trim().toLowerCase();
+    const matchesSearch = !query || 
+      (item.book.title && item.book.title.toLowerCase().includes(query)) ||
+      (item.book.author && item.book.author.toLowerCase().includes(query));
+    return matchesFormat && matchesSearch;
   });
 
   const handleDownloadFullMedia = async (item: LibraryItem) => {
@@ -270,49 +300,122 @@ export const CloudLibraryView: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Format Filter Bar */}
-        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-200 pb-3 text-xs">
-          <span className="text-slate-500 font-bold shrink-0">Filter By Media:</span>
-          {(['all', 'ebook', 'audiobook', 'videobook', 'manuscript', 'hardcover', 'papercover', 'pendrive_sd', 'musical_album', 'silk_cotton', 'digital_device'] as const).map((fmt) => (
-            <button
-              key={fmt}
-              onClick={() => setFilterFormat(fmt)}
-              className={`px-3 py-1 rounded-full font-semibold capitalize whitespace-nowrap transition cursor-pointer ${
-                filterFormat === fmt
-                  ? 'bg-[#131921] text-amber-400 shadow'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {fmt === 'all' 
-                ? `All Items (${library.length})` 
-                : fmt === 'pendrive_sd' ? 'Pendrive / SD'
-                : fmt === 'musical_album' ? 'Musical Album'
-                : fmt === 'silk_cotton' ? 'Silk & Cotton'
-                : fmt === 'digital_device' ? 'Dedicated Device'
-                : fmt}
-            </button>
-          ))}
+        {/* Search Bar & Media Filter */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          {/* Format Filter Bar */}
+          <div className="flex items-center gap-1.5 overflow-x-auto text-xs pb-1 sm:pb-0">
+            <span className="text-slate-500 font-bold shrink-0">Filter:</span>
+            {(['all', 'ebook', 'audiobook', 'videobook', 'manuscript', 'hardcover', 'papercover', 'pendrive_sd', 'musical_album', 'silk_cotton', 'digital_device'] as const).map((fmt) => (
+              <button
+                key={fmt}
+                onClick={() => setFilterFormat(fmt)}
+                className={`px-3 py-1 rounded-full font-semibold capitalize whitespace-nowrap transition cursor-pointer ${
+                  filterFormat === fmt
+                    ? 'bg-[#131921] text-amber-400 shadow'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {fmt === 'all' 
+                  ? `All (${library.length})` 
+                  : fmt === 'pendrive_sd' ? 'Pendrive / SD'
+                  : fmt === 'musical_album' ? 'Musical Album'
+                  : fmt === 'silk_cotton' ? 'Silk & Cotton'
+                  : fmt === 'digital_device' ? 'Dedicated Device'
+                  : fmt}
+              </button>
+            ))}
+          </div>
+
+          {/* Real-time search input */}
+          <div className="relative sm:w-72 md:w-80 shrink-0">
+            <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${
+              searchQuery ? 'text-amber-600' : 'text-slate-400'
+            }`} />
+            <input
+              id="cloud-library-realtime-search-input"
+              type="text"
+              placeholder="Filter by title or author..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSearchQuery('');
+              }}
+              className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-amber-500 rounded-xl pl-9 pr-20 py-1.5 text-xs text-slate-900 placeholder-slate-400 outline-none transition focus:ring-2 focus:ring-amber-500/20"
+              aria-label="Filter cloud library by title or author name"
+            />
+            {searchQuery.trim() && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold border border-amber-300/60">
+                  {filteredLibrary.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-200 transition cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Real-time Active Search Banner */}
+        {searchQuery.trim() && (
+          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between">
+            <span>
+              Searching library for <strong className="text-amber-950">"{searchQuery}"</strong> (title or author): found <strong>{filteredLibrary.length}</strong> of {library.length} book{library.length === 1 ? '' : 's'}.
+            </span>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="text-amber-800 hover:underline font-bold text-xs cursor-pointer flex items-center gap-1"
+            >
+              <span>Clear Filter</span>
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
 
         {/* Library Items Grid */}
         {filteredLibrary.length === 0 ? (
-          <div className="bg-white p-12 rounded-xl border border-slate-200 text-center space-y-4 max-w-md mx-auto">
-            <div className="w-14 h-14 bg-amber-50 rounded-full mx-auto flex items-center justify-center text-amber-600">
-              <Library className="w-7 h-7" />
+          searchQuery.trim() ? (
+            <div className="bg-white p-12 rounded-xl border border-slate-200 text-center space-y-4 max-w-md mx-auto">
+              <div className="w-14 h-14 bg-amber-50 rounded-full mx-auto flex items-center justify-center text-amber-600">
+                <Search className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-slate-900 text-base">No books matching "{searchQuery}"</h3>
+                <p className="text-xs text-slate-500">
+                  No titles or author names matched your search term in your purchased library.
+                </p>
+              </div>
+              <button
+                onClick={() => setSearchQuery('')}
+                className="py-2 px-5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-xs cursor-pointer transition"
+              >
+                Clear Search Filter
+              </button>
             </div>
-            <div className="space-y-1">
-              <h3 className="font-bold text-slate-900 text-base">Your collection is empty in this view</h3>
-              <p className="text-xs text-slate-500">
-                Explore Johnnyblue1 Books Stores and add multi-format books to your library.
-              </p>
+          ) : (
+            <div className="bg-white p-12 rounded-xl border border-slate-200 text-center space-y-4 max-w-md mx-auto">
+              <div className="w-14 h-14 bg-amber-50 rounded-full mx-auto flex items-center justify-center text-amber-600">
+                <Library className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-slate-900 text-base">Your collection is empty in this view</h3>
+                <p className="text-xs text-slate-500">
+                  Explore Johnnyblue1 Books Stores and add multi-format books to your library.
+                </p>
+              </div>
+              <button
+                onClick={() => setCurrentView('store')}
+                className="py-2 px-5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-full shadow cursor-pointer transition"
+              >
+                Browse Catalogue
+              </button>
             </div>
-            <button
-              onClick={() => setCurrentView('store')}
-              className="py-2 px-5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-full shadow cursor-pointer transition"
-            >
-              Browse Catalogue
-            </button>
-          </div>
+          )
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredLibrary.map((item) => (
@@ -342,10 +445,10 @@ export const CloudLibraryView: React.FC = () => {
                       }}
                       className="font-bold text-sm text-slate-900 line-clamp-2 hover:text-amber-700 cursor-pointer font-serif"
                     >
-                      {item.book.title}
+                      {highlightMatch(item.book.title, searchQuery)}
                     </h3>
                     <p className="text-xs text-slate-500">
-                      by {item.book.author}
+                      by {highlightMatch(item.book.author, searchQuery)}
                     </p>
                     <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 pt-1">
                       <CheckCircle2 className="w-3.5 h-3.5" />

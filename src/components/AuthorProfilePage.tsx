@@ -30,11 +30,20 @@ import {
   Bell,
   BellRing,
   Check,
-  Radio
+  Radio,
+  Instagram,
+  Youtube,
+  Facebook,
+  Linkedin,
+  Twitter,
+  Feather,
+  GraduationCap,
+  Languages
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Book, FormatType, AuthorProfile } from '../types';
 import { INITIAL_AUTHOR_PROFILES } from '../data/mockReviews';
+import { getAuthorSocialAndBioData } from '../data/authorSocialData';
 import { 
   connectGoogleDrive, 
   disconnectGoogleDrive, 
@@ -62,7 +71,13 @@ export const AuthorProfilePage: React.FC = () => {
     notifyNewAssetRelease,
     showNotification,
     t,
-    formatPrice
+    formatPrice,
+    openAuthorSocialModal,
+    getAuthorFollowedSocialCount,
+    isFollowingSocial,
+    toggleFollowSocial,
+    followAllSocials,
+    unfollowAllSocials
   } = useStore();
 
   // Selected author profile state
@@ -79,7 +94,7 @@ export const AuthorProfilePage: React.FC = () => {
     return initialProfile;
   });
 
-  const [activeTab, setActiveTab] = useState<'titles' | 'manuscripts' | 'musical_albums' | 'drive_vault'>('titles');
+  const [activeTab, setActiveTab] = useState<'titles' | 'manuscripts' | 'musical_albums' | 'drive_vault' | 'social_bio'>('titles');
   const [driveConnected, setDriveConnected] = useState<boolean>(isDriveConnected());
   const [driveEmail, setDriveEmail] = useState<string>(getConnectedDriveEmail());
   const [isConnectingDrive, setIsConnectingDrive] = useState(false);
@@ -87,6 +102,10 @@ export const AuthorProfilePage: React.FC = () => {
   const [aiBioModalOpen, setAiBioModalOpen] = useState(false);
   const [releaseAssetModalOpen, setReleaseAssetModalOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Social handles & Bio-Data resolution
+  const authorSocialBio = getAuthorSocialAndBioData(profile.penName || targetAuthorName);
+  const followedSocialsCount = getAuthorFollowedSocialCount(profile.penName);
 
   // Follow author status and live followers count
   const isFollowing = isFollowingAuthor(profile.penName);
@@ -425,6 +444,21 @@ export const AuthorProfilePage: React.FC = () => {
                   </span>
                 </button>
 
+                {/* 6 Social Media Handles & Bio-Data Trigger Button */}
+                <button
+                  id="author-social-handles-bio-btn"
+                  type="button"
+                  onClick={() => openAuthorSocialModal(profile.penName)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black bg-gradient-to-r from-pink-600 via-rose-600 to-amber-600 hover:from-pink-700 hover:to-amber-700 text-white shadow-sm transition-all duration-200 cursor-pointer active:scale-95 group"
+                  title="Display Instagram, TikTok, YouTube, Facebook, LinkedIn, X handles & Bio-Data with in-platform Follow"
+                >
+                  <Share2 className="w-4 h-4 text-amber-200 group-hover:rotate-12 transition-transform" />
+                  <span>Social Media & Bio-Data (6 Channels)</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/20 text-white">
+                    {followedSocialsCount}/6
+                  </span>
+                </button>
+
                 {isFollowing ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs animate-in fade-in">
                     <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
@@ -482,6 +516,198 @@ export const AuthorProfilePage: React.FC = () => {
                 <span className="text-[11px] text-slate-500">
                   Synthesizes your published book catalog into a professional biography
                 </span>
+              </div>
+
+              {/* In-Platform 6 Social Media Handles Bar */}
+              <div className="pt-2 pb-1 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                    <Radio className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+                    <span>Follow Across 6 Official Channels (In-Platform):</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => followAllSocials(profile.penName)}
+                      className="text-[11px] font-bold text-amber-700 hover:text-amber-900 cursor-pointer"
+                    >
+                      + Follow All 6
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => openAuthorSocialModal(profile.penName)}
+                      className="text-[11px] font-bold text-rose-700 hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <span>Full Bio-Data Dossier</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {/* Instagram */}
+                  <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between gap-1.5 ${
+                    isFollowingSocial(profile.penName, 'instagram') ? 'bg-emerald-50/70 border-emerald-300' : 'bg-white border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center shrink-0">
+                        <Instagram className="w-3 h-3" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-900 truncate">Instagram</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-500 truncate" title={authorSocialBio.socialHandles.instagram}>
+                      {authorSocialBio.socialHandles.instagram}
+                    </span>
+                    <button
+                      id="page-social-instagram-btn"
+                      type="button"
+                      onClick={() => toggleFollowSocial(profile.penName, 'instagram')}
+                      className={`w-full py-1 px-2 rounded-lg text-[10px] font-black transition cursor-pointer flex items-center justify-center gap-1 ${
+                        isFollowingSocial(profile.penName, 'instagram')
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                      }`}
+                    >
+                      {isFollowingSocial(profile.penName, 'instagram') ? 'Following ✓' : 'Follow'}
+                    </button>
+                  </div>
+
+                  {/* TikTok */}
+                  <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between gap-1.5 ${
+                    isFollowingSocial(profile.penName, 'tiktok') ? 'bg-emerald-50/70 border-emerald-300' : 'bg-white border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-slate-900 text-white flex items-center justify-center shrink-0">
+                        <Music className="w-3 h-3 text-cyan-400" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-900 truncate">TikTok</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-500 truncate" title={authorSocialBio.socialHandles.tiktok}>
+                      {authorSocialBio.socialHandles.tiktok}
+                    </span>
+                    <button
+                      id="page-social-tiktok-btn"
+                      type="button"
+                      onClick={() => toggleFollowSocial(profile.penName, 'tiktok')}
+                      className={`w-full py-1 px-2 rounded-lg text-[10px] font-black transition cursor-pointer flex items-center justify-center gap-1 ${
+                        isFollowingSocial(profile.penName, 'tiktok')
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-100 text-slate-900 hover:bg-slate-200 border border-slate-300'
+                      }`}
+                    >
+                      {isFollowingSocial(profile.penName, 'tiktok') ? 'Following ✓' : 'Follow'}
+                    </button>
+                  </div>
+
+                  {/* YouTube */}
+                  <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between gap-1.5 ${
+                    isFollowingSocial(profile.penName, 'youtube') ? 'bg-emerald-50/70 border-emerald-300' : 'bg-white border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0">
+                        <Youtube className="w-3 h-3" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-900 truncate">YouTube</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-500 truncate" title={authorSocialBio.socialHandles.youtube}>
+                      {authorSocialBio.socialHandles.youtube}
+                    </span>
+                    <button
+                      id="page-social-youtube-btn"
+                      type="button"
+                      onClick={() => toggleFollowSocial(profile.penName, 'youtube')}
+                      className={`w-full py-1 px-2 rounded-lg text-[10px] font-black transition cursor-pointer flex items-center justify-center gap-1 ${
+                        isFollowingSocial(profile.penName, 'youtube')
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                      }`}
+                    >
+                      {isFollowingSocial(profile.penName, 'youtube') ? 'Subscribed ✓' : 'Subscribe'}
+                    </button>
+                  </div>
+
+                  {/* Facebook */}
+                  <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between gap-1.5 ${
+                    isFollowingSocial(profile.penName, 'facebook') ? 'bg-emerald-50/70 border-emerald-300' : 'bg-white border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center shrink-0">
+                        <Facebook className="w-3 h-3" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-900 truncate">Facebook</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-500 truncate" title={authorSocialBio.socialHandles.facebook}>
+                      {authorSocialBio.socialHandles.facebook}
+                    </span>
+                    <button
+                      id="page-social-facebook-btn"
+                      type="button"
+                      onClick={() => toggleFollowSocial(profile.penName, 'facebook')}
+                      className={`w-full py-1 px-2 rounded-lg text-[10px] font-black transition cursor-pointer flex items-center justify-center gap-1 ${
+                        isFollowingSocial(profile.penName, 'facebook')
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                      }`}
+                    >
+                      {isFollowingSocial(profile.penName, 'facebook') ? 'Following ✓' : 'Follow'}
+                    </button>
+                  </div>
+
+                  {/* LinkedIn */}
+                  <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between gap-1.5 ${
+                    isFollowingSocial(profile.penName, 'linkedin') ? 'bg-emerald-50/70 border-emerald-300' : 'bg-white border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-sky-700 text-white flex items-center justify-center shrink-0">
+                        <Linkedin className="w-3 h-3" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-900 truncate">LinkedIn</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-500 truncate" title={authorSocialBio.socialHandles.linkedin}>
+                      {authorSocialBio.socialHandles.linkedin}
+                    </span>
+                    <button
+                      id="page-social-linkedin-btn"
+                      type="button"
+                      onClick={() => toggleFollowSocial(profile.penName, 'linkedin')}
+                      className={`w-full py-1 px-2 rounded-lg text-[10px] font-black transition cursor-pointer flex items-center justify-center gap-1 ${
+                        isFollowingSocial(profile.penName, 'linkedin')
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200'
+                      }`}
+                    >
+                      {isFollowingSocial(profile.penName, 'linkedin') ? 'Following ✓' : 'Follow'}
+                    </button>
+                  </div>
+
+                  {/* X (Twitter) */}
+                  <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between gap-1.5 ${
+                    isFollowingSocial(profile.penName, 'twitter') ? 'bg-emerald-50/70 border-emerald-300' : 'bg-white border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-zinc-900 text-white flex items-center justify-center shrink-0">
+                        <Twitter className="w-3 h-3" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-900 truncate">X (Twitter)</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-500 truncate" title={authorSocialBio.socialHandles.twitter}>
+                      {authorSocialBio.socialHandles.twitter}
+                    </span>
+                    <button
+                      id="page-social-twitter-btn"
+                      type="button"
+                      onClick={() => toggleFollowSocial(profile.penName, 'twitter')}
+                      className={`w-full py-1 px-2 rounded-lg text-[10px] font-black transition cursor-pointer flex items-center justify-center gap-1 ${
+                        isFollowingSocial(profile.penName, 'twitter')
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 border border-zinc-300'
+                      }`}
+                    >
+                      {isFollowingSocial(profile.penName, 'twitter') ? 'Following ✓' : 'Follow'}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Meta Info: Location, Member Since, Links */}
@@ -678,6 +904,22 @@ export const AuthorProfilePage: React.FC = () => {
           >
             <HardDrive className="w-4 h-4" />
             <span>Google Drive & Firebase Vault</span>
+          </button>
+
+          <button
+            id="tab-social-bio-btn"
+            onClick={() => setActiveTab('social_bio')}
+            className={`pb-2 px-3 transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'social_bio'
+                ? 'border-b-2 border-amber-600 text-amber-900 font-bold'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <Share2 className="w-4 h-4 text-rose-600" />
+            <span>6 Social Channels & Bio-Data</span>
+            <span className="px-1.5 py-0.2 bg-amber-400 text-slate-950 rounded-full text-[10px] font-black">
+              6
+            </span>
           </button>
         </div>
 
@@ -1074,6 +1316,277 @@ export const AuthorProfilePage: React.FC = () => {
                 </div>
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB 5: 6 SOCIAL CHANNELS & AUTHOR BIO-DATA DOSSIER       */}
+        {/* ======================================================== */}
+        {activeTab === 'social_bio' && (
+          <div className="py-6 space-y-6 animate-in fade-in duration-200">
+            {/* Top Toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 font-serif flex items-center gap-2">
+                  <Share2 className="w-5 h-5 text-amber-600" />
+                  <span>Official Social Media Channels & Author Dossier</span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Follow {profile.penName} on verified channels directly within the platform.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  id="tab-follow-all-socials-btn"
+                  onClick={() => followAllSocials(profile.penName)}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Follow All 6 Channels ({followedSocialsCount}/6)</span>
+                </button>
+                <button
+                  onClick={() => openAuthorSocialModal(profile.penName)}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition cursor-pointer"
+                >
+                  Open in Dedicated Popup
+                </button>
+              </div>
+            </div>
+
+            {/* 6 Social Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Instagram */}
+              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center shadow-xs">
+                      <Instagram className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-900">Instagram Profile</h4>
+                      <p className="text-[11px] font-mono text-slate-500">{authorSocialBio.socialHandles.instagram}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {authorSocialBio.socialHandles.instagramFollowers || '42K'}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">In-Platform Sync</span>
+                  <button
+                    onClick={() => toggleFollowSocial(profile.penName, 'instagram')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      isFollowingSocial(profile.penName, 'instagram')
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-rose-600 hover:bg-rose-700 text-white'
+                    }`}
+                  >
+                    {isFollowingSocial(profile.penName, 'instagram') ? 'Following ✓' : 'Follow'}
+                  </button>
+                </div>
+              </div>
+
+              {/* TikTok */}
+              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+                      <Music className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-900">TikTok Handle</h4>
+                      <p className="text-[11px] font-mono text-slate-500">{authorSocialBio.socialHandles.tiktok}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {authorSocialBio.socialHandles.tiktokFollowers || '89K'}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">In-Platform Sync</span>
+                  <button
+                    onClick={() => toggleFollowSocial(profile.penName, 'tiktok')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      isFollowingSocial(profile.penName, 'tiktok')
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-900 hover:bg-slate-800 text-white'
+                    }`}
+                  >
+                    {isFollowingSocial(profile.penName, 'tiktok') ? 'Following ✓' : 'Follow'}
+                  </button>
+                </div>
+              </div>
+
+              {/* YouTube */}
+              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs">
+                      <Youtube className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-900">YouTube Channel</h4>
+                      <p className="text-[11px] font-mono text-slate-500">{authorSocialBio.socialHandles.youtube}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {authorSocialBio.socialHandles.youtubeSubscribers || '118K'}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">In-Platform Sync</span>
+                  <button
+                    onClick={() => toggleFollowSocial(profile.penName, 'youtube')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      isFollowingSocial(profile.penName, 'youtube')
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
+                  >
+                    {isFollowingSocial(profile.penName, 'youtube') ? 'Subscribed ✓' : 'Subscribe'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Facebook */}
+              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                      <Facebook className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-900">Facebook Page / Profile</h4>
+                      <p className="text-[11px] font-mono text-slate-500">{authorSocialBio.socialHandles.facebook}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {authorSocialBio.socialHandles.facebookFollowers || '27K'}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">In-Platform Sync</span>
+                  <button
+                    onClick={() => toggleFollowSocial(profile.penName, 'facebook')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      isFollowingSocial(profile.penName, 'facebook')
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    {isFollowingSocial(profile.penName, 'facebook') ? 'Following ✓' : 'Follow'}
+                  </button>
+                </div>
+              </div>
+
+              {/* LinkedIn */}
+              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-sky-700 text-white flex items-center justify-center shadow-xs">
+                      <Linkedin className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-900">LinkedIn Page</h4>
+                      <p className="text-[11px] font-mono text-slate-500">{authorSocialBio.socialHandles.linkedin}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {authorSocialBio.socialHandles.linkedinFollowers || '19K'}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">In-Platform Sync</span>
+                  <button
+                    onClick={() => toggleFollowSocial(profile.penName, 'linkedin')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      isFollowingSocial(profile.penName, 'linkedin')
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-sky-700 hover:bg-sky-800 text-white'
+                    }`}
+                  >
+                    {isFollowingSocial(profile.penName, 'linkedin') ? 'Following ✓' : 'Follow'}
+                  </button>
+                </div>
+              </div>
+
+              {/* X (Twitter) */}
+              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-900 text-white flex items-center justify-center shadow-xs">
+                      <Twitter className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-900">X (Twitter) Handle</h4>
+                      <p className="text-[11px] font-mono text-slate-500">{authorSocialBio.socialHandles.twitter}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {authorSocialBio.socialHandles.twitterFollowers || '56K'}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">In-Platform Sync</span>
+                  <button
+                    onClick={() => toggleFollowSocial(profile.penName, 'twitter')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      isFollowingSocial(profile.penName, 'twitter')
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-zinc-900 hover:bg-black text-white'
+                    }`}
+                  >
+                    {isFollowingSocial(profile.penName, 'twitter') ? 'Following ✓' : 'Follow'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Author Bio-Data & Literary Profile Full Card */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h4 className="text-sm font-bold text-slate-900 font-serif flex items-center gap-2">
+                  <Feather className="w-4 h-4 text-amber-600" />
+                  <span>Curated Author Bio-Data & Literary Pedigree</span>
+                </h4>
+                <span className="text-[11px] text-slate-500">
+                  Real Name: <strong>{authorSocialBio.bioData.realName}</strong>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <GraduationCap className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Academic & Creative Background</span>
+                  </span>
+                  <p className="font-bold text-slate-900">{authorSocialBio.bioData.academicTitle || 'Doctor of Literature & Philosophy'}</p>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">{authorSocialBio.bioData.educationOrBackground}</p>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <Languages className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Languages & Geographic Residence</span>
+                  </span>
+                  <p className="font-bold text-slate-900">{authorSocialBio.bioData.languagesSpoken.join(', ')}</p>
+                  <p className="text-slate-500 text-[11px]">Resident in {authorSocialBio.bioData.location}</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/80 text-xs text-slate-700 space-y-1.5">
+                <span className="font-bold text-amber-950 uppercase tracking-wide text-[10px]">
+                  10-Dimension Sovereign Publishing Philosophy:
+                </span>
+                <p className="leading-relaxed">
+                  {authorSocialBio.bioData.publishingPhilosophy}
+                </p>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed pt-1">
+                {authorSocialBio.bioData.fullBio}
+              </p>
             </div>
           </div>
         )}

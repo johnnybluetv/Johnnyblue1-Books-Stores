@@ -616,16 +616,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSoundDialog }) => {
                 <div className="py-1">
                   <button
                     onClick={() => {
-                      setCurrentView('library');
+                      setCurrentView('my-library');
                       setIsAccountDropdownOpen(false);
                     }}
                     className="w-full flex items-center justify-between px-3.5 py-2 text-left text-xs hover:bg-slate-800 transition cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
                       <Library className="w-4 h-4 text-amber-400" />
-                      <span>{t('nav_library')}</span>
+                      <div>
+                        <div className="font-semibold text-white">Customer Digital Library</div>
+                        <div className="text-[10px] text-amber-300/80">/my-library • In-browser Media</div>
+                      </div>
                     </div>
-                    <span className="text-[10px] bg-slate-800 text-slate-300 font-bold px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] bg-amber-400/20 text-amber-300 font-bold px-1.5 py-0.5 rounded border border-amber-400/30">
                       {library.length} items
                     </span>
                   </button>
@@ -727,6 +730,29 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSoundDialog }) => {
               </div>
             )}
           </div>
+
+          {/* Customer Digital Library Direct Header Button */}
+          <button
+            id="header-my-library-direct-btn"
+            onClick={() => setCurrentView('my-library')}
+            className={`flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg transition relative cursor-pointer border ${
+              currentView === 'my-library' || currentView === 'library'
+                ? 'bg-amber-400 text-slate-950 font-bold border-amber-300 ring-1 ring-amber-400 shadow-xs'
+                : 'hover:ring-1 hover:ring-white border-transparent text-white'
+            }`}
+            title={`Customer Digital Library (${library.length} items)`}
+            aria-label="Customer Digital Library"
+          >
+            <div className="relative">
+              <Library className={`w-5 h-5 sm:w-5.5 sm:h-5.5 ${currentView === 'my-library' || currentView === 'library' ? 'text-slate-950' : 'text-amber-400'}`} />
+              {library.length > 0 && (
+                <span className="absolute -top-1.5 -right-2 bg-emerald-500 text-slate-950 font-black text-[10px] px-1.5 py-0.2 rounded-full min-w-[17px] text-center shadow">
+                  {library.length}
+                </span>
+              )}
+            </div>
+            <span className="hidden sm:inline font-bold text-xs mt-0.5">My Library</span>
+          </button>
 
           {/* Wishlist Direct Header Button */}
           <button

@@ -31,7 +31,7 @@ import {
 } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Book, Review, AuthorProfile, UserUploadRecord, StripeConnectAccount, AppUser, AuthProviderType, AudioBookmark, BlogPost, ReelVideo } from '../types';
+import { Book, Review, AuthorProfile, UserUploadRecord, StripeConnectAccount, AppUser, AuthProviderType, AudioBookmark, BlogPost, ReelVideo, LibraryItem, CollectionFolder } from '../types';
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -536,4 +536,83 @@ export async function fetchReelsFromFirestore(): Promise<ReelVideo[]> {
   }
   return [];
 }
+
+// ==========================================
+// CUSTOMER DIGITAL LIBRARY FIRESTORE HELPERS
+// ==========================================
+export async function saveCustomerLibraryToFirestore(
+  userId: string, 
+  items: LibraryItem[], 
+  folders?: CollectionFolder[]
+): Promise<void> {
+  try {
+    const libRef = doc(db, 'customer_libraries', userId || 'default-user');
+    const payload: Record<string, any> = {
+      userId: userId || 'default-user',
+      items: items.map(item => ({
+        id: item.id,
+        bookId: item.bookId,
+        format: item.format,
+        purchasedAt: item.purchasedAt,
+        downloadCount: item.downloadCount || 0,
+        lastProgress: item.lastProgress || 0,
+        folderId: item.folderId || null,
+        folderName: item.folderName || null,
+        tags: item.tags || [],
+        book: {
+          id: item.book.id,
+          title: item.book.title,
+          subtitle: item.book.subtitle,
+          author: item.book.author,
+          coverImage: item.book.coverImage,
+          category: item.book.category,
+          publisher: item.book.publisher,
+          rating: item.book.rating,
+          description: item.book.description,
+          pages: item.book.pages,
+          language: item.book.language,
+          chapterOnePreview: item.book.chapterOnePreview,
+          audioSample: item.book.audioSample,
+          videoSample: item.book.videoSample,
+          manuscriptSample: item.book.manuscriptSample,
+          musicalAlbumSample: item.book.musicalAlbumSample
+        }
+      })),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (folders) {
+      payload.folders = folders.map(f => ({
+        id: f.id,
+        name: f.name,
+        description: f.description || '',
+        color: f.color || 'amber',
+        iconName: f.iconName || 'folder',
+        createdAt: f.createdAt || new Date().toISOString(),
+        isDefault: !!f.isDefault
+      }));
+    }
+
+    await setDoc(libRef, payload, { merge: true });
+  } catch (err) {
+    console.warn('Firestore saveCustomerLibrary error (localStorage fallback active):', err);
+  }
+}
+
+export async function fetchCustomerLibraryFromFirestore(userId: string): Promise<{ items: LibraryItem[]; folders: CollectionFolder[] }> {
+  try {
+    const libRef = doc(db, 'customer_libraries', userId || 'default-user');
+    const snap = await getDoc(libRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      const items = Array.isArray(data?.items) ? (data.items as LibraryItem[]) : [];
+      const folders = Array.isArray(data?.folders) ? (data.folders as CollectionFolder[]) : [];
+      return { items, folders };
+    }
+  } catch (err) {
+    console.warn('Firestore fetchCustomerLibrary error:', err);
+  }
+  return { items: [], folders: [] };
+}
+
 
